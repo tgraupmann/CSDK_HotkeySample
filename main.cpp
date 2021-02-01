@@ -29,9 +29,9 @@ void Init()
 
 	ChromaSDK::APPINFOTYPE appInfo = {};
 
-	_tcscpy_s(appInfo.Title, 256, _T("HOTKEY Chroma sample"));
+	_tcscpy_s(appInfo.Title, 256, _T("Hotkey Chroma sample"));
 	_tcscpy_s(appInfo.Description, 1024, _T("A sample application using Razer Chroma SDK"));
-	_tcscpy_s(appInfo.Author.Name, 256, _T("Whiterose"));
+	_tcscpy_s(appInfo.Author.Name, 256, _T("Razer"));
 	_tcscpy_s(appInfo.Author.Contact, 256, _T("https://developer.razer.com/chroma"));
 
 	//appInfo.SupportedDevice = 
