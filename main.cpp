@@ -85,6 +85,14 @@ const int GetColorArraySize2D(EChromaSDKDevice2DEnum device)
 	return maxRow * maxColumn;
 }
 
+void SetAmbientColor(int* colors, int size, int color)
+{
+	for (int i = 0; i < size; ++i)
+	{
+		colors[i] = color;
+	}
+}
+
 void GameLoop()
 {
 	const int sizeChromaLink = GetColorArraySize1D(EChromaSDKDevice1DEnum::DE_ChromaLink);
@@ -103,13 +111,14 @@ void GameLoop()
 
 	while (_sWaitForExit)
 	{
-		// start with a blank frame
-		memset(colorsChromaLink, 0, sizeof(int) * sizeChromaLink);
-		memset(colorsHeadset, 0, sizeof(int) * sizeHeadset);
-		memset(colorsKeyboard, 0, sizeof(int) * sizeKeyboard);
-		memset(colorsKeypad, 0, sizeof(int) * sizeKeypad);
-		memset(colorsMouse, 0, sizeof(int) * sizeMouse);
-		memset(colorsMousepad, 0, sizeof(int) * sizeMousepad);
+		// start with a color
+		int color = ChromaAnimationAPI::GetRGB(0, 0, 48); //blue
+		SetAmbientColor(colorsChromaLink, sizeChromaLink, color);
+		SetAmbientColor(colorsHeadset, sizeHeadset, color);
+		SetAmbientColor(colorsKeyboard, sizeKeyboard, color);
+		SetAmbientColor(colorsKeypad, sizeKeypad, color);
+		SetAmbientColor(colorsMouse, sizeMouse, color);
+		SetAmbientColor(colorsMousepad, sizeMousepad, color);
 
 		// Show hotkeys
 		SetKeyColorRGB(colorsKeyboard, (int)Keyboard::RZKEY::RZKEY_ESC, 255, 255, 0);
