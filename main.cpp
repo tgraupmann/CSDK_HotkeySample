@@ -15,16 +15,17 @@
 using namespace ChromaSDK;
 using namespace std;
 
+static bool _sInitialized = false;
 static bool _sWaitForExit = true;
 static bool _sPressShow = false;
-static bool _sToggleShow = false;
+static bool _sToggleShow = true;
+static bool _sToggleUninit = false; //toggle uninit Chroma when LCTRL is not pressed
 
 void Init()
 {
-	if (ChromaAnimationAPI::InitAPI() != 0)
+	if (_sInitialized)
 	{
-		cerr << "Failed to load Chroma library!" << endl;
-		exit(1);
+		return; //already initialized
 	}
 
 	ChromaSDK::APPINFOTYPE appInfo = {};
@@ -49,10 +50,28 @@ void Init()
 	RZRESULT result = ChromaAnimationAPI::InitSDK(&appInfo);
 	if (result != RZRESULT_SUCCESS)
 	{
-		cerr << "Failed to initialize Chroma!" << endl;
+		cerr << "Failed to initialize Chroma! Result=" << result  << endl;
 		exit(1);
 	}
-	Sleep(100); //wait for init
+	
+	_sInitialized = true;
+}
+
+void Uninit()
+{
+	if (!_sInitialized)
+	{
+		return;
+	}
+
+	RZRESULT result = ChromaAnimationAPI::Uninit();
+	if (result != RZRESULT_SUCCESS)
+	{
+		cerr << "Failed to uninitialize Chroma! Result=" << result << endl;
+		exit(1);
+	}
+
+	_sInitialized = false;
 }
 
 int GetKeyColorIndex(int row, int column)
@@ -111,6 +130,18 @@ void GameLoop()
 
 	while (_sWaitForExit)
 	{
+		if (_sToggleUninit)
+		{
+			if (!_sPressShow)
+			{
+				Uninit(); // Uninitialize Chroma to fallback to Synapse or the next Chroma app
+				Sleep(33); //30 FPS
+				continue;
+			}
+		}
+		
+		Init(); // initialize Chroma if not initialized
+
 		// start with a color
 		int color = ChromaAnimationAPI::GetRGB(0, 0, 48); //blue
 		SetAmbientColor(colorsChromaLink, sizeChromaLink, color);
@@ -120,28 +151,28 @@ void GameLoop()
 		SetAmbientColor(colorsMouse, sizeMouse, color);
 		SetAmbientColor(colorsMousepad, sizeMousepad, color);
 
-		// Show hotkeys
-		SetKeyColorRGB(colorsKeyboard, (int)Keyboard::RZKEY::RZKEY_ESC, 255, 255, 0);
-		SetKeyColorRGB(colorsKeyboard, (int)Keyboard::RZKEY::RZKEY_W, 0, 255, 0);
-		SetKeyColorRGB(colorsKeyboard, (int)Keyboard::RZKEY::RZKEY_A, 0, 255, 0);
-		SetKeyColorRGB(colorsKeyboard, (int)Keyboard::RZKEY::RZKEY_S, 0, 255, 0);
-		SetKeyColorRGB(colorsKeyboard, (int)Keyboard::RZKEY::RZKEY_D, 0, 255, 0);
-		
 		// Show only when key is pressed
 		if (_sPressShow)
 		{			
-			SetKeyColorRGB(colorsKeyboard, (int)Keyboard::RZKEY::RZKEY_O, 255, 255, 0);
-			SetKeyColorRGB(colorsKeyboard, (int)Keyboard::RZKEY::RZKEY_P, 255, 255, 0);
-			SetKeyColorRGB(colorsKeyboard, (int)Keyboard::RZKEY::RZKEY_SPACE, 255, 255, 0);
+			SetKeyColorRGB(colorsKeyboard, (int)Keyboard::RZKEY::RZKEY_O, 0, 255, 0);
+			SetKeyColorRGB(colorsKeyboard, (int)Keyboard::RZKEY::RZKEY_P, 0, 255, 0);
+			SetKeyColorRGB(colorsKeyboard, (int)Keyboard::RZKEY::RZKEY_SPACE, 0, 255, 0);
 		}
 
 		// Show when toggled
 		if (_sToggleShow)
 		{
-			SetKeyColorRGB(colorsKeyboard, (int)Keyboard::RZKEY::RZKEY_T, 255, 0, 0);
-			SetKeyColorRGB(colorsKeyboard, (int)Keyboard::RZKEY::RZKEY_I, 255, 0, 0);
-			SetKeyColorRGB(colorsKeyboard, (int)Keyboard::RZKEY::RZKEY_J, 255, 0, 0);
-			SetKeyColorRGB(colorsKeyboard, (int)Keyboard::RZKEY::RZKEY_K, 255, 0, 0);
+			// Show hotkeys
+			SetKeyColorRGB(colorsKeyboard, (int)Keyboard::RZKEY::RZKEY_ESC, 255, 255, 0);
+			SetKeyColorRGB(colorsKeyboard, (int)Keyboard::RZKEY::RZKEY_H, 255, 255, 0);
+			SetKeyColorRGB(colorsKeyboard, (int)Keyboard::RZKEY::RZKEY_U, 255, 255, 0);
+			SetKeyColorRGB(colorsKeyboard, (int)Keyboard::RZKEY::RZKEY_LCTRL, 255, 255, 0);
+
+			// WASD KEYS
+			SetKeyColorRGB(colorsKeyboard, (int)Keyboard::RZKEY::RZKEY_W, 255, 0, 0);
+			SetKeyColorRGB(colorsKeyboard, (int)Keyboard::RZKEY::RZKEY_A, 255, 0, 0);
+			SetKeyColorRGB(colorsKeyboard, (int)Keyboard::RZKEY::RZKEY_S, 255, 0, 0);
+			SetKeyColorRGB(colorsKeyboard, (int)Keyboard::RZKEY::RZKEY_D, 255, 0, 0);
 		}
 
 		ChromaAnimationAPI::SetEffectCustom1D((int)EChromaSDKDevice1DEnum::DE_ChromaLink, colorsChromaLink);
@@ -170,6 +201,7 @@ void InputHandler()
 	HandleInput inputLControl = HandleInput(VK_LCONTROL);
 	HandleInput inputEscape = HandleInput(VK_ESCAPE);
 	HandleInput inputH = HandleInput('H');
+	HandleInput inputU = HandleInput('U');
 
 	while (_sWaitForExit)
 	{
@@ -182,20 +214,12 @@ void InputHandler()
 		{
 			_sToggleShow = !_sToggleShow;
 		}
+		if (inputU.WasReleased())
+		{
+			_sToggleUninit = !_sToggleUninit;
+		}
 
 		Sleep(1);
-	}
-}
-
-void Cleanup()
-{
-	ChromaAnimationAPI::StopAll();
-	ChromaAnimationAPI::CloseAll();
-	RZRESULT result = ChromaAnimationAPI::Uninit();
-	if (result != RZRESULT_SUCCESS)
-	{
-		cerr << "Failed to uninitialize Chroma!" << endl;
-		exit(1);
 	}
 }
 
@@ -203,16 +227,22 @@ int main()
 {
 	fprintf(stdout, "HOTKEY CHROMA SAMPLE APP\r\n\r\n");
 
-	Init();
+	if (!ChromaAnimationAPI::GetIsInitializedAPI() &&
+		ChromaAnimationAPI::InitAPI() != 0)
+	{
+		cerr << "Failed to load Chroma library!" << endl;
+		exit(1);
+	}
 
 	thread thread(GameLoop);
 	cout << "Press `ESC` to Quit." << endl;
 	cout << "Press `HOLD LEFT CONTROL` to show keys when pressed." << endl;
 	cout << "Press `H` to toggle keys." << endl;
+	cout << "Press `U` to toggle uninit Chroma when LEFT CONTROL isn't pressed." << endl;
 
 	InputHandler();
 
 	thread.join();
-	Cleanup();
+	Uninit();
 	return 0;
 }
